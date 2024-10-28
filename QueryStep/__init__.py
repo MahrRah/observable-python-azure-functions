@@ -13,9 +13,11 @@ from azure.cosmos import CosmosClient
 # config_integration.trace_integrations(['logging'])
 
 from azure.monitor.opentelemetry import configure_azure_monitor
+from opentelemetry import trace
+
 
 configure_azure_monitor()
-
+tracer = trace.get_tracer(__name__)
 
 
 def main(timer: func.TimerRequest, outputEventHubMessage: func.Out[str], context: func.Context) -> None:
@@ -31,7 +33,7 @@ def main(timer: func.TimerRequest, outputEventHubMessage: func.Out[str], context
         raise ValueError("COSMOSDB_CONNECTION_STRING env variable not set")
     
     logging.info(f"Query Data Azure Function triggerred. Current tracecontext is: {context.trace_context.Traceparent}")
-    with context.tracer.span("queryExternalCatalog"):
+    with tracer.start_as_current_span("queryExternalCatalog"):
         logging.info('querying the external catalog')
 
         try:
@@ -44,11 +46,11 @@ def main(timer: func.TimerRequest, outputEventHubMessage: func.Out[str], context
             raise e
 
 
-    with context.tracer.span("sendMessage"):
+    with tracer.start_as_current_span("sendMessage"):
         logging.info('Building the events')
 
     try:
-        with context.tracer.span("splitToMessages"):
+        with tracer.start_as_current_span("splitToMessages"):
             # extract the "data" field form each document
             logging.info('Splitting to events')
             for d in docs_list:
@@ -60,7 +62,7 @@ def main(timer: func.TimerRequest, outputEventHubMessage: func.Out[str], context
             serialized_data_list = [json.dumps(d['data']) for d in docs_list]
 
 
-        with context.tracer.span("setMessages"): 
+        with tracer.start_as_current_span("setMessages"): 
             logging.info('Sending messages to Event Hub')
             for d in serialized_data_list:
                 outputEventHubMessage.set(d)

@@ -6,7 +6,11 @@ from azure.data.tables import TableServiceClient
 
 from azure.monitor.opentelemetry import configure_azure_monitor
 
+from opentelemetry import trace
+
+
 configure_azure_monitor()
+tracer = trace.get_tracer(__name__)
 
 
 def main(msg: func.ServiceBusMessage, context: func.Context):
@@ -16,7 +20,7 @@ def main(msg: func.ServiceBusMessage, context: func.Context):
     if not storage_account_connection_string:
         raise ValueError("AzureWebJobsStorage env variable not set")
     
-    with context.tracer.span("readMessage"):
+    with tracer.start_as_current_span("readMessage"):
         logging.info("in readMessage span")
         try:
             entity_to_upsert = json.loads(msg.get_body().decode('utf-8'))
