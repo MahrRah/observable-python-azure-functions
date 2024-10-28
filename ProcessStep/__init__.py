@@ -2,12 +2,11 @@ import json
 import logging
 
 import azure.functions as func
-from opencensus.extension.azure.functions import OpenCensusExtension
-from opencensus.trace import config_integration
 from datetime import datetime
 
-config_integration.trace_integrations(['requests'])
-config_integration.trace_integrations(['logging'])
+
+from azure.monitor.opentelemetry import configure_azure_monitor
+
 
 def main(event: func.EventHubEvent, outputServiceBusMessage: func.Out[str], context: func.Context):
     logging.info(f"Python EventHub trigger processed event")

@@ -4,13 +4,18 @@ import datetime
 import logging
 
 import azure.functions as func
-from opencensus.extension.azure.functions import OpenCensusExtension
-from opencensus.trace import config_integration
+# from opencensus.extension.azure.functions import OpenCensusExtension
+# from opencensus.trace import config_integration
 from azure.cosmos import CosmosClient
 
-OpenCensusExtension.configure()
-config_integration.trace_integrations(['requests'])
-config_integration.trace_integrations(['logging'])
+# OpenCensusExtension.configure()
+# config_integration.trace_integrations(['requests'])
+# config_integration.trace_integrations(['logging'])
+
+from azure.monitor.opentelemetry import configure_azure_monitor
+
+configure_azure_monitor()
+
 
 
 def main(timer: func.TimerRequest, outputEventHubMessage: func.Out[str], context: func.Context) -> None:

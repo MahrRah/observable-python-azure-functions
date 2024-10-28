@@ -2,12 +2,12 @@ import os
 import json
 import logging
 import azure.functions as func
-from opencensus.trace import config_integration
 from azure.data.tables import TableServiceClient
 
+from azure.monitor.opentelemetry import configure_azure_monitor
 
-config_integration.trace_integrations(['requests'])
-config_integration.trace_integrations(['logging'])
+configure_azure_monitor()
+
 
 def main(msg: func.ServiceBusMessage, context: func.Context):
     logging.info(f"Python ServiceBus queue trigger processed message {msg.message_id}")
