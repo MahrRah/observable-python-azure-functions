@@ -63,6 +63,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2022-05-15' = {
   properties: {
     locations: failOverlocations
     databaseAccountOfferType: 'Standard'
+    disableLocalAuth: false
   }
 }
 
@@ -112,9 +113,18 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-08-01' = {
       }
     }
 }
+param roleDefinitionResourceId string = '/providers/Microsoft.Authorization/roleDefinitions/17d1049b-9a84-46fb-8f53-869881c3d3ab'
+param principalId string = '62e1e478-057a-4332-93d9-315367bd62a6'
 
-
-
+resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: storageAccount
+  name: guid(storageAccount.id, principalId, roleDefinitionResourceId)
+  properties: {
+    roleDefinitionId: roleDefinitionResourceId
+    principalId: principalId
+    principalType: 'User'
+  }
+}
 
 // Creation of the Log-Analytics worksspace and the 
 // Application Insights resource attached to it
@@ -248,14 +258,17 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
         {
           name: 'EVENTHUBS_NS_CONNECTION_STRING'
           connectionString: eventHubNamespaceConnectionString
+          type: 'EventHub'
         }
         {
           name: 'SERVICEBUS_NS_CONNECTION_STRING'
           connectionString: serviceBusNamespaceConnectionString
+          type: 'ServiceBus'
         }
         {
           name: 'COSMOSDB_CONNECTION_STRING'
           connectionString: cosmosConnectionString
+          type: 'DocDb'
         }
 
       ]
@@ -263,6 +276,14 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
         {
           name: 'AzureWebJobsStorage'
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+        }
+        {
+          name: 'EVENTHUBS_NS_CONNECTION_STRING'
+          value: eventHubNamespaceConnectionString
+        }
+        {
+          name: 'COSMOSDB_CONNECTION_STRING'
+          value: cosmosConnectionString
         }
         {
           name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'

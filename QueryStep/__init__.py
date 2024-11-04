@@ -7,6 +7,7 @@ import azure.functions as func
 # from opencensus.extension.azure.functions import OpenCensusExtension
 # from opencensus.trace import config_integration
 from azure.cosmos import CosmosClient
+from azure.identity import DefaultAzureCredential
 
 # OpenCensusExtension.configure()
 # config_integration.trace_integrations(['requests'])
@@ -28,16 +29,17 @@ def main(timer: func.TimerRequest, outputEventHubMessage: func.Out[str], context
         logging.info('The timer is past due!')
 
 
-    cosmos_connection_string = os.environ.get("ConnectionStrings:COSMOSDB_CONNECTION_STRING", None)
+    cosmos_connection_string = os.environ.get("COSMOSDB_CONNECTION_STRING", None)
     if not cosmos_connection_string:
         raise ValueError("COSMOSDB_CONNECTION_STRING env variable not set")
     
-    logging.info(f"Query Data Azure Function triggerred. Current tracecontext is: {context.trace_context.Traceparent}")
+    logging.info(f"Query Data Azure Function triggered. Current tracecontext is: {context.trace_context.Traceparent}")
     with tracer.start_as_current_span("queryExternalCatalog"):
         logging.info('querying the external catalog')
 
         try:
-            client = CosmosClient.from_connection_string(cosmos_connection_string)
+            credential=DefaultAzureCredential()
+            client = CosmosClient.from_connection_string(cosmos_connection_string, credential=credential)
             database = client.get_database_client("ContosoDatabase")
             container = database.get_container_client("onPremisesData")
             docs_list = list(container.read_all_items(max_item_count=10))
