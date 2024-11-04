@@ -51,25 +51,25 @@ def main(timer: func.TimerRequest, outputEventHubMessage: func.Out[str], context
     with tracer.start_as_current_span("sendMessage"):
         logging.info('Building the events')
 
-    try:
-        with tracer.start_as_current_span("splitToMessages"):
-            # extract the "data" field form each document
-            logging.info('Splitting to events')
-            for d in docs_list:
-                for item in d['data']:
-                        item.update({
-                            "sample_part": d['sample_part']
-                        })
+        try:
+            with tracer.start_as_current_span("splitToMessages"):
+                # extract the "data" field form each document
+                logging.info('Splitting to events')
+                for d in docs_list:
+                    for item in d['data']:
+                            item.update({
+                                "sample_part": d['sample_part']
+                            })
 
-            serialized_data_list = [json.dumps(d['data']) for d in docs_list]
+                serialized_data_list = [json.dumps(d['data']) for d in docs_list]
 
 
-        with tracer.start_as_current_span("setMessages"): 
-            logging.info('Sending messages to Event Hub')
-            for d in serialized_data_list:
-                outputEventHubMessage.set(d)
-    except Exception as e:
-        logging.exception(e)
-        raise e
+            with tracer.start_as_current_span("setMessages"): 
+                logging.info('Sending messages to Event Hub')
+                for d in serialized_data_list:
+                    outputEventHubMessage.set(d)
+        except Exception as e:
+            logging.exception(e)
+            raise e
 
     logging.info('Python timer trigger function ran at %s', utc_timestamp)
