@@ -42,6 +42,7 @@ var hostingPlanName = appName
 
 var cosmosAccountName  = 'cosmos-${suffix}'
 var storageAccountName = 'storage${suffix}'
+var storageBlobContainerName = 'storage${suffix}blob'
 
 
 var failOverlocations = [
@@ -112,6 +113,19 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-08-01' = {
       name: 'ingesteddata'
       }
     }
+}
+
+resource blobServices 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource storageBlobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2021-08-01' = {
+  name:storageBlobContainerName
+  parent: blobServices
+  properties: {
+    publicAccess: 'None'
+  }
 }
 param roleDefinitionResourceId string = '/providers/Microsoft.Authorization/roleDefinitions/17d1049b-9a84-46fb-8f53-869881c3d3ab'
 param principalId string = '62e1e478-057a-4332-93d9-315367bd62a6'
@@ -235,13 +249,15 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
   location: location
   kind: 'linux'
   sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
+    tier: 'FlexConsumption'
+    name: 'FC1'
   }
   properties: {
     reserved: true
   }
 }
+
+
 
 resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
   name: functionAppName
@@ -253,7 +269,6 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
   properties: {
     serverFarmId: hostingPlan.id
     siteConfig: {
-      linuxFxVersion: 'python|3.9'
       connectionStrings: [
         {
           name: 'EVENTHUBS_NS_CONNECTION_STRING'
@@ -274,6 +289,10 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
       ]
       appSettings: [
         {
+          name: 'DEPLOYMENT_STORAGE_CONNECTION_STRING'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};AccountKey=${listKeys(storageAccount.id,'2019-06-01').keys[0].value};EndpointSuffix=core.windows.net'
+        }
+        {
           name: 'AzureWebJobsStorage'
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
@@ -282,17 +301,14 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
           value: eventHubNamespaceConnectionString
         }
         {
+          name: 'SERVICEBUS_NS_CONNECTION_STRING'
+          value: serviceBusNamespaceConnectionString
+        }
+        {
           name: 'COSMOSDB_CONNECTION_STRING'
           value: cosmosConnectionString
         }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
-        }
+    
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
           value: '~4'
@@ -302,16 +318,32 @@ resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
           value: '1'
         }
         {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: functionWorkerRuntime
-        }
-        {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsights.properties.ConnectionString
         }
       ]
       ftpsState: 'FtpsOnly'
       minTlsVersion: '1.2'
+    }
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: 'https://${storageAccountName}.blob.core.windows.net/${storageBlobContainerName}'
+          authentication: {
+            type: 'StorageAccountConnectionString'
+            storageAccountConnectionStringName: 'DEPLOYMENT_STORAGE_CONNECTION_STRING'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: 100
+        instanceMemoryMB: 2048
+      }
+      runtime: {
+        name: 'python'
+        version: '3.11'
+      }
     }
     httpsOnly: true
   }

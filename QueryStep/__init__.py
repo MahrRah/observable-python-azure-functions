@@ -8,6 +8,7 @@ import azure.functions as func
 # from opencensus.trace import config_integration
 from azure.cosmos import CosmosClient
 from azure.identity import DefaultAzureCredential
+from opentelemetry.propagate import extract
 
 # OpenCensusExtension.configure()
 # config_integration.trace_integrations(['requests'])
@@ -19,9 +20,11 @@ from opentelemetry import trace
 
 configure_azure_monitor()
 tracer = trace.get_tracer(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
-
+@tracer.start_as_current_span("QueryStepFunction")
 def main(timer: func.TimerRequest, outputEventHubMessage: func.Out[str], context: func.Context) -> None:
+    
     utc_timestamp = datetime.datetime.utcnow().replace(
         tzinfo=datetime.timezone.utc).isoformat()
 
